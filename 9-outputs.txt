@@ -1,0 +1,16 @@
+output "hq_hub_id" {
+  value = google_network_connectivity_hub.hq_hub.id
+  # format: projects/ind-armageddon/locations/global/hubs/hq-hub
+}
+
+output "hq_ha_vpn_self_link" {
+  value = google_compute_ha_vpn_gateway.hq_ha_vpn.self_link
+}
+
+output "hq_bgp_asn" {
+  value = google_compute_router.hq_router.bgp[0].asn
+}
+
+# If you’ve fixed linknets there, export the peer IPs (.2)
+output "hq_peer1_ip" { value = "169.254.11.2" }
+output "hq_peer2_ip" { value = "169.254.12.2" }

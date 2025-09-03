@@ -1,0 +1,103 @@
+
+# File: Foreign-HA-VPN.tf
+
+# -------------------------
+# 1. HA VPN Gateway
+# -------------------------
+resource "google_compute_ha_vpn_gateway" "foreign_ha_vpn" {
+  name    = "ha-vpn-foreign"
+  network = google_compute_network.foreign_vpc.id
+  region  = "us-east1"
+}
+
+# -------------------------
+# 2. Cloud Router
+# -------------------------
+resource "google_compute_router" "foreign_router" {
+  name    = "foreign-router"
+  network = google_compute_network.foreign_vpc.name
+  region  = "us-east1"
+  bgp {
+    asn = 65430
+  }
+}
+
+# -------------------------
+# 3. VPN Tunnels
+# -------------------------
+resource "google_compute_vpn_tunnel" "foreign_tunnel1" {
+  name                  = "foreign-vpn-tunnel1"
+  region                = "us-east1"
+  vpn_gateway           = google_compute_ha_vpn_gateway.foreign_ha_vpn.id
+  peer_gcp_gateway      = "projects/ck-armageddon/regions/us-east1/haVpnGateways/hq-ha-vpn"
+  shared_secret         = "foreign-secret-123"
+  router                = google_compute_router.foreign_router.id
+  vpn_gateway_interface = 0
+}
+
+resource "google_compute_vpn_tunnel" "foreign_tunnel2" {
+  name                  = "foreign-vpn-tunnel2"
+  region                = "us-east1"
+  vpn_gateway           = google_compute_ha_vpn_gateway.foreign_ha_vpn.id
+  peer_gcp_gateway      = "projects/ck-armageddon/regions/us-east1/haVpnGateways/hq-ha-vpn"
+  shared_secret         = "foreign-secret-123"
+  router                = google_compute_router.foreign_router.id
+  vpn_gateway_interface = 1
+}
+
+# -------------------------
+# 4. Router Interfaces & BGP Peers
+# -------------------------
+resource "google_compute_router_interface" "foreign_if1" {
+  name       = "if1"
+  router     = google_compute_router.foreign_router.name
+  region     = "us-east1"
+  ip_range   = "169.254.11.1/30"
+  vpn_tunnel = google_compute_vpn_tunnel.foreign_tunnel1.name
+}
+
+resource "google_compute_router_peer" "foreign_peer1" {
+  name            = "peer1"
+  router          = google_compute_router.foreign_router.name
+  region          = "us-east1"
+  peer_ip_address = "169.254.11.2"
+  peer_asn        = 65420
+  interface       = google_compute_router_interface.foreign_if1.name
+}
+
+resource "google_compute_router_interface" "foreign_if2" {
+  name       = "if2"
+  router     = google_compute_router.foreign_router.name
+  region     = "us-east1"
+  ip_range   = "169.254.12.1/30"
+  vpn_tunnel = google_compute_vpn_tunnel.foreign_tunnel2.name
+}
+
+resource "google_compute_router_peer" "foreign_peer2" {
+  name            = "peer2"
+  router          = google_compute_router.foreign_router.name
+  region          = "us-east1"
+  peer_ip_address = "169.254.12.2"
+  peer_asn        = 65420
+  interface       = google_compute_router_interface.foreign_if2.name
+}
+
+# -------------------------
+# 5. NCC Spoke for Foreign Testers
+# -------------------------
+resource "google_network_connectivity_spoke" "foreign_vpn_spoke" {
+  provider    = google-beta
+  name        = "foreign-vpn-spoke"
+  location    = "global"
+  project     = "ck-armageddon"
+  hub         = "projects/ck-armageddon/locations/global/hubs/balerica-ncc-hub"
+  description = "Spoke for foreign testers via HA VPN"
+
+  linked_vpn_tunnels {
+    uris = [
+      google_compute_vpn_tunnel.foreign_tunnel1.id,
+      google_compute_vpn_tunnel.foreign_tunnel2.id
+    ]
+    site_to_site_data_transfer = true
+  }
+}
