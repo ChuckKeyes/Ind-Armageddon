@@ -1,0 +1,11 @@
+resource "google_network_connectivity_spoke" "hq_router_edge_spoke" {
+  name        = "hq-router-edge-spoke"
+  project     = var.project_id
+  location    = "us-east1"
+  hub         = google_network_connectivity_hub.balerica_ncc_hub.id
+  description = "Edge spoke connection from hqvpc-router"
+
+  linked_router {
+    router = google_compute_router.hqvpc_router.id
+  }
+}

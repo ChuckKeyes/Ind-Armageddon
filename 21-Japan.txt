@@ -1,0 +1,119 @@
+# Refactored: HA VPN between Japan VPC and NCC
+
+# -------------------------
+# 1. Japan VPC and Subnets
+# -------------------------
+resource "google_compute_network" "japan_vpc" {
+  name                    = "vpc-japan"
+  auto_create_subnetworks = false
+  routing_mode            = "GLOBAL"
+}
+
+resource "google_compute_subnetwork" "japan_subnet" {
+  name          = "subnet-japan"
+  ip_cidr_range = "10.70.0.0/24"
+  region        = "asia-northeast1"
+  network       = google_compute_network.japan_vpc.id
+}
+
+# -------------------------
+# 2. Japan HA VPN Gateway
+# -------------------------
+resource "google_compute_ha_vpn_gateway" "japan_ha_gateway" {
+  name    = "ha-vpn-japan"
+  network = google_compute_network.japan_vpc.id
+  region  = "asia-northeast1"
+}
+
+# -------------------------
+# 3. Japan Router for HA VPN
+# -------------------------
+resource "google_compute_router" "japan_router" {
+  name    = "japan-vpn-router"
+  network = google_compute_network.japan_vpc.name
+  region  = "asia-northeast1"
+
+  bgp {
+    asn = 64514
+  }
+}
+
+# -------------------------
+# 4. Japan VPN Tunnels
+# -------------------------
+resource "google_compute_vpn_tunnel" "japan_tunnel1" {
+  name                  = "japan-vpn-tunnel1"
+  region                = "asia-northeast1"
+  vpn_gateway           = google_compute_ha_vpn_gateway.japan_ha_gateway.id
+  peer_gcp_gateway      = var.japan_peer_vpn_gateway_id
+  shared_secret         = var.japan_shared_secret
+  router                = google_compute_router.japan_router.id
+  vpn_gateway_interface = 0
+}
+
+resource "google_compute_vpn_tunnel" "japan_tunnel2" {
+  name                  = "japan-vpn-tunnel2"
+  region                = "asia-northeast1"
+  vpn_gateway           = google_compute_ha_vpn_gateway.japan_ha_gateway.id
+  peer_gcp_gateway      = var.japan_peer_vpn_gateway_id
+  shared_secret         = var.japan_shared_secret
+  router                = google_compute_router.japan_router.id
+  vpn_gateway_interface = 1
+}
+
+# -------------------------
+# 5. Japan Router Interfaces & Peers
+# -------------------------
+resource "google_compute_router_interface" "japan_if1" {
+  name       = "if1"
+  router     = google_compute_router.japan_router.name
+  region     = "asia-northeast1"
+  ip_range   = "169.254.10.1/30"
+  vpn_tunnel = google_compute_vpn_tunnel.japan_tunnel1.name
+}
+
+resource "google_compute_router_peer" "japan_peer1" {
+  name            = "peer1"
+  router          = google_compute_router.japan_router.name
+  region          = "asia-northeast1"
+  peer_ip_address = "169.254.10.2"
+  peer_asn        = var.japan_peer_asn
+  interface       = google_compute_router_interface.japan_if1.name
+}
+
+resource "google_compute_router_interface" "japan_if2" {
+  name       = "if2"
+  router     = google_compute_router.japan_router.name
+  region     = "asia-northeast1"
+  ip_range   = "169.254.20.1/30"
+  vpn_tunnel = google_compute_vpn_tunnel.japan_tunnel2.name
+}
+
+resource "google_compute_router_peer" "japan_peer2" {
+  name            = "peer2"
+  router          = google_compute_router.japan_router.name
+  region          = "asia-northeast1"
+  peer_ip_address = "169.254.20.2"
+  peer_asn        = var.japan_peer_asn
+  interface       = google_compute_router_interface.japan_if2.name
+}
+
+# -------------------------
+# 6. NCC Spoke for Japan VPC
+# -------------------------
+resource "google_network_connectivity_spoke" "japan_vpn_spoke" {
+  provider    = google-beta
+  name        = "japan-vpn-spoke"
+  location    = "global"
+  project     = var.project_id
+  hub         = var.ncc_hub_id
+  description = "Spoke for Japan VPC via HA VPN to NCC"
+
+  linked_vpn_tunnels {
+    uris = [
+      google_compute_vpn_tunnel.japan_tunnel1.id,
+      google_compute_vpn_tunnel.japan_tunnel2.id
+    ]
+    site_to_site_data_transfer = true
+  }
+}

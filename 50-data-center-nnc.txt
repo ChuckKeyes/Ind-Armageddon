@@ -1,0 +1,17 @@
+resource "google_network_connectivity_spoke" "datacenter_spoke" {
+  provider = google-beta
+
+  project  = var.project_id
+  name     = "datacenter-center-spoke"
+  hub      = var.ncc_hub_id
+  location = var.region
+  description = "Center spoke from Data Center subnet inside HQ VPC"
+
+  linked_router_appliance_instances {
+    instances {
+      virtual_machine = google_compute_instance.datacenter_router.id
+      ip_address      = google_compute_instance.datacenter_router.network_interface[0].network_ip
+    }
+    site_to_site_data_transfer = true
+  }
+}

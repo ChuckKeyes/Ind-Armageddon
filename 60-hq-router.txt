@@ -1,0 +1,8 @@
+resource "google_compute_router" "hq_router" {
+  name    = "hq-router"
+  network = "hqvpc"
+  region  = "us-east1"
+  bgp {
+    asn = 65001
+  }
+}

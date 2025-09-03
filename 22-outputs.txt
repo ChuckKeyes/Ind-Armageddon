@@ -1,0 +1,28 @@
+output "vpc_name" {
+  value = google_compute_network.hq_vpc.name
+}
+
+output "subnets" {
+  value = [
+    google_compute_subnetwork.production.name,
+    google_compute_subnetwork.finance.name,
+    google_compute_subnetwork.customer_service.name,
+    google_compute_subnetwork.data_center.name
+  ]
+}
+
+# output "ncc_hub_id" {
+#   value = google_network_connectivity_hub.balerica_hub.id
+# }
+
+# # output "ncc_hub_self_link" {
+# #  value = google_network_connectivity_hub.balerica_hub.self_link
+# # }
+
+# output "balerica_subnets" {
+#   value = [
+#     google_compute_subnetwork.production.name,
+#     google_compute_subnetwork.finance.name,
+#     google_compute_subnetwork.customer_service.name
+#   ]
+# }

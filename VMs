@@ -1,0 +1,58 @@
+resource "google_compute_instance" "vm_production" {
+  name         = "vm-production"
+  machine_type = "e2-micro"
+  zone         = "${var.region}-b"
+
+  boot_disk {
+    initialize_params {
+      image = "debian-cloud/debian-11"
+    }
+  }
+
+  network_interface {
+    subnetwork   = google_compute_subnetwork.subnet_production.name
+    access_config {}
+  }
+
+  tags = ["test-vm"]
+}
+################################################################
+
+resource "google_compute_instance" "vm_finance" {
+  name         = "vm-finance"
+  machine_type = "e2-micro"
+  zone         = "${var.region}-b"
+
+  boot_disk {
+    initialize_params {
+      image = "debian-cloud/debian-11"
+    }
+  }
+
+  network_interface {
+    subnetwork   = google_compute_subnetwork.subnet_finance.name
+    access_config {}
+  }
+
+  tags = ["test-vm"]
+}
+#####################################################################
+
+resource "google_compute_instance" "vm_customer_service" {
+  name         = "vm-customer-service"
+  machine_type = "e2-micro"
+  zone         = "${var.region}-b"
+
+  boot_disk {
+    initialize_params {
+      image = "debian-cloud/debian-11"
+    }
+  }
+
+  network_interface {
+    subnetwork   = google_compute_subnetwork.subnet_customer_service.name
+    access_config {}
+  }
+
+  tags = ["test-vm"]
+}

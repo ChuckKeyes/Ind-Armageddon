@@ -1,0 +1,22 @@
+gcloud network-connectivity spokes delete thinclient-router-edge-spoke \
+  --project=ck-armageddon \
+  --location=us-east1
+
+
+gcloud network-connectivity spokes delete datacenter-center-spoke \
+  --project=ck-armageddon \
+  --location=global
+
+gcloud network-connectivity spokes list --project=ck-armageddon
+
+
+for SPOKE in spoke1 spoke2 spoke3; do
+  gcloud network-connectivity spokes delete "$SPOKE" \
+    --project=ck-armageddon \
+    --location=us-east1 --quiet
+done
+
+
+gcloud network-connectivity spokes list --project=YOUR_PROJECT_ID --format="value(name,location)" | while read NAME LOCATION; do
+  gcloud network-connectivity spokes delete "$NAME" --project=YOUR_PROJECT_ID --location="$LOCATION" --quiet
+done
